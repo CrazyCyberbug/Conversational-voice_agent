@@ -22,12 +22,10 @@ sleep 5
 echo "==== Pulling model from Hugging Face via Ollama ===="
 ollama pull "https://huggingface.co/ikawrakow/open-hermes-2.5-mistral-7b-quantized-gguf"
 
-echo "==== Cloning Conversational Voice Agent repo ===="
-git clone https://github.com/CrazyCyberbug/Conversational-voice_agent.git
-cd Conversational-voice_agent
 
 echo "==== Installing Python dependencies ===="
 python3.10 -m pip install --upgrade pip
+cd Conversational-voice_agent
 python3.10 -m pip install -r requirements.txt
 
 echo "==== Forcing specific dependency versions ===="
