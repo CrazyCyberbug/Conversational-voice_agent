@@ -119,6 +119,8 @@
       display: flex;
       flex-direction: column;
       background: transparent;
+      height: 100vh;
+      min-height: 100vh;
     }
 
     .header {
@@ -134,6 +136,46 @@
       color: #1f2937;
     }
 
+    .logo-icon {
+      transition: transform 0.3s ease;
+    }
+
+    /* Breathing animation for logo when recording */
+    @keyframes breathe {
+      0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.08);
+        opacity: 0.85;
+      }
+    }
+
+    .logo-icon.recording {
+      animation: breathe 2.5s ease-in-out infinite;
+    }
+
+    /* Typing cursor animation */
+    .typing-cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background-color: currentColor;
+      margin-left: 3px;
+      animation: blink 1s step-end infinite;
+      vertical-align: text-bottom;
+    }
+
+    @keyframes blink {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0;
+      }
+    }
+
     .status {
       margin-left: auto;
       font-size: 13px;
@@ -145,6 +187,8 @@
       padding: 28px;
       background: var(--bg);
       overflow-y: auto;
+      overflow-x: hidden;
+      max-height: 100%;
 
       display: flex;
       flex-direction: column;
@@ -272,10 +316,12 @@
   <div class="chat-container">
     <div class="header">
     <img
-      src="./assets/flower.svg"
+      id="logoIcon"
+      class="logo-icon"
+      src="/static/assets/flower.svg"
       alt="Flower logo"
-      width="22"
-      height="22"
+      width="32"
+      height="32"
     />
 
 
@@ -408,5 +454,32 @@
 </script>
 
 <script src="/static/app.js"></script>
+
+<script>
+  // Add breathing animation control based on recording status
+  const logoIcon = document.getElementById('logoIcon');
+  const statusDiv = document.getElementById('status');
+
+  // Monitor status changes to control animation
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'childList' || mutation.type === 'characterData') {
+        const statusText = statusDiv.textContent.toLowerCase();
+        if (statusText.includes('recording')) {
+          logoIcon.classList.add('recording');
+        } else {
+          logoIcon.classList.remove('recording');
+        }
+      }
+    });
+  });
+
+  observer.observe(statusDiv, {
+    childList: true,
+    characterData: true,
+    subtree: true
+  });
+</script>
+
 </body>
 </html>

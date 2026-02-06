@@ -1,4 +1,3 @@
-
 document.addEventListener("DOMContentLoaded", () => {
 (function() {
   const originalLog = console.log.bind(console);
@@ -54,7 +53,7 @@ let audioContext = null;
 let mediaStream = null;
 let micWorkletNode = null;
 let ttsWorkletNode = null;
-let selectedPersona = null; //added here
+let selectedPersona = "ecommerce"; // Initialize with default persona
 
 let isTTSPlaying = false;
 let ignoreIncomingTTS = false;
@@ -63,7 +62,7 @@ let chatHistory = [];
 let typingUser = "";
 let typingAssistant = "";
 
-// --- batching + fixed 8‑byte header setup ---
+// --- batching + fixed 8â€'byte header setup ---
 const BATCH_SAMPLES = 2048;
 const HEADER_BYTES  = 8;
 const FRAME_BYTES   = BATCH_SAMPLES * 2;
@@ -227,16 +226,20 @@ function renderMessages() {
   if (typingUser) {
     const typing = document.createElement("div");
     typing.className = "bubble user typing";
-    typing.innerHTML = typingUser + '<span style="opacity:.6;">✏️</span>';
+    typing.innerHTML = typingUser + '<span class="typing-cursor"></span>';
     messagesDiv.appendChild(typing);
   }
   if (typingAssistant) {
     const typing = document.createElement("div");
     typing.className = "bubble assistant typing";
-    typing.innerHTML = typingAssistant + '<span style="opacity:.6;">✏️</span>';
+    typing.innerHTML = typingAssistant + '<span class="typing-cursor"></span>';
     messagesDiv.appendChild(typing);
   }
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  // Smooth scroll to bottom to keep latest message in view
+  messagesDiv.scrollTo({
+    top: messagesDiv.scrollHeight,
+    behavior: 'smooth'
+  });
 }
 
 function handleJSONMessage({ type, content }) {
@@ -297,8 +300,8 @@ function handleJSONMessage({ type, content }) {
 function escapeHtml(str) {
   return (str ?? '')
     .replace(/&/g, "&amp;")
-    .replace(/</g, "<")
-    .replace(/>/g, ">")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
 
@@ -336,10 +339,7 @@ document.getElementById("startBtn").onclick = async () => {
     return;
   }
   
-  if (!selectedPersona) {
-    alert("Please select a persona before starting.");
-    return;
-  } // added here
+  // Removed the alert - selectedPersona now has default value
   personaSelect.disabled = true; //added here
   statusDiv.textContent = "Initializing connection...";
 
@@ -353,7 +353,7 @@ document.getElementById("startBtn").onclick = async () => {
     prompt: PERSONAS[selectedPersona].systemPrompt
   }));
 
-  statusDiv.textContent = "Connected. Activating mic and TTS…";
+  statusDiv.textContent = "Connected. Activating mic and TTS...";
   await startRawPcmCapture();
   await setupTTSPlayback();
   // speedSlider.disabled = false;
@@ -393,7 +393,7 @@ document.getElementById("startBtn").onclick = async () => {
 document.getElementById("stopBtn").onclick = () => {
   
   personaSelect.disabled = false;
-  selectedPersona = null;
+  // Don't reset selectedPersona to null - keep current selection
 
   if (socket && socket.readyState === WebSocket.OPEN) {
     flushRemainder();
