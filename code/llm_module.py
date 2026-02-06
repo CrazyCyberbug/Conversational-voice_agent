@@ -264,6 +264,16 @@ class LLM:
             self.system_prompt_message = {"role": "system", "content": self.system_prompt}
             logger.info(f"🤖💬 System prompt set.")
 
+    def update_system_prompt(self, new_prompt: str):
+      """Update the system prompt at runtime."""
+      self.system_prompt = new_prompt
+      if self.system_prompt:
+          self.system_prompt_message = {"role": "system", "content": self.system_prompt}
+          logger.info("🤖📝 System prompt message updated.")
+      else:
+          self.system_prompt_message = None
+          logger.info("🤖📝 System prompt message cleared.")
+
     def _lazy_initialize_clients(self) -> bool:
         """
         Initializes backend clients or checks connections on first use (thread-safe).

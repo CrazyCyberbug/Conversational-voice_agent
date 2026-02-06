@@ -80,6 +80,7 @@ class AudioProcessor:
             self,
             engine: str = START_ENGINE,
             orpheus_model: str = "orpheus-3b-0.1-ft-Q8_0-GGUF/orpheus-3b-0.1-ft-q8_0.gguf",
+            voice: Optional[str] = None
         ) -> None:
         """
         Initializes the AudioProcessor with a specific TTS engine.
@@ -97,6 +98,7 @@ class AudioProcessor:
         self.finished_event = threading.Event()
         self.audio_chunks = asyncio.Queue() # Queue for synthesized audio output
         self.orpheus_model = orpheus_model
+        self.current_voice = voice if voice is not None else "af_heart"
 
         self.silence = ENGINE_SILENCES.get(engine, ENGINE_SILENCES[self.engine_name])
         self.current_stream_chunk_size = QUICK_ANSWER_STREAM_CHUNK_SIZE # Initial chunk size
@@ -120,7 +122,7 @@ class AudioProcessor:
             )
         elif engine == "kokoro":
             self.engine = KokoroEngine(
-                voice="af_heart",
+                voice=self.current_voice,
                 default_speed=1.26,
                 trim_silence=True,
                 silence_threshold=0.01,
@@ -216,6 +218,47 @@ class AudioProcessor:
 
         # Callbacks to be set externally if needed
         self.on_first_audio_chunk_synthesize: Optional[Callable[[], None]] = None
+
+    def set_voice(self, voice: str) -> None:
+      """Change Kokoro voice dynamically"""
+      if self.engine_name != "kokoro":
+          raise RuntimeError(f"Only Kokoro supports voice changing")
+      
+      old_voice = self.current_voice
+      self.current_voice = voice
+      logger.info(f"👄🔄 Voice: {old_voice} → {voice}")
+      
+      try:
+          if self.stream.is_playing():
+              self.stream.stop()
+              self.finished_event.wait(timeout=2.0)
+          
+          self.engine = KokoroEngine(
+              voice=self.current_voice,
+              default_speed=1.26,
+              trim_silence=True,
+              silence_threshold=0.01,
+              extra_start_ms=25,
+              extra_end_ms=15,
+              fade_in_ms=15,
+              fade_out_ms=10,
+          )
+          
+          self.stream = TextToAudioStream(
+              self.engine,
+              muted=True,
+              playout_chunk_size=4096,
+              on_audio_stream_stop=self.on_audio_stream_stop,
+          )
+          
+          logger.info(f"👄✅ Voice changed to: {voice}")
+          
+      except Exception as e:
+          # Restore old voice on error
+          self.current_voice = old_voice
+          logger.error(f"👄💥 Voice change failed: {e}")
+          raise
+
 
     def on_audio_stream_stop(self) -> None:
         """

@@ -43,6 +43,41 @@ Do NOT create or use any other emotion tags. Do NOT remove the spaces. Use these
 
 orpheus_prompt_addon = orpheus_prompt_addon_uncensored if USE_ORPHEUS_UNCENSORED else orpheus_prompt_addon_normal
 
+PERSONA_VOICES = {
+    "ecommerce": "af_bella",   # Roopa - warm, professional
+    "english": "am_michael",   # Advait - clear, articulate  
+    "fitness": "af_sky",       # Pooja - energetic
+}
+
+
+PROMPTS= {
+    "ecommerce": """You are Roopa, a customer support agent at QuickKart, an e-commerce platform for electronics and home appliances.
+You handle order tracking, returns, refunds, and product inquiries.
+Be warm and solution-oriented. Acknowledge frustration before solving problems. Keep responses under 3 sentences.
+For refunds, explain the 5-7 business day timeline. For replacements, confirm the delivery address before proceeding.
+If a customer is angry, apologize sincerely and offer a concrete next step. Never argue or make excuses.
+When a customer asks about an order, ask for their order ID if they haven't provided one. Accept any order ID they give and simulate looking it up - create a realistic status like "out for delivery", "shipped", or "processing" based on the conversation flow.""",
+
+
+"english": """You are Advait, an English conversation coach at SpeakEasy, an app that helps professionals improve their spoken English.
+Your student is preparing for job interviews and wants to sound more confident and fluent in workplace conversations.
+Practice common interview scenarios like self-introduction, strengths and weaknesses, and handling tough questions.
+Gently correct grammar and pronunciation errors by repeating the correct version naturally in your response.
+Praise improvements specifically, like "Your use of transition words has really improved!" Keep the energy positive and encouraging.
+If the student struggles, simplify your language and break down complex sentences. Speak at a moderate pace.""",
+
+"fitness": """You are Coach Pooja from FitBuddy, a fitness app helping users build sustainable workout habits.
+Your user is a 30-year-old professional who wants to lose weight and build stamina but has limited time for the gym.
+Recommend 20-30 minute home workouts that don't require equipment. Focus on consistency over intensity.
+Ask about their current fitness level, any injuries, and preferred workout times before suggesting a routine.
+Provide motivation and accountability. Check in on how yesterday's workout went before planning the next one.
+Remind them that rest days are important. If they missed a workout, be supportive and help them get back on track without guilt."""
+
+
+}
+
+
+
 
 class PipelineRequest:
     """
@@ -126,6 +161,7 @@ class SpeechPipelineManager:
             llm_model: str = "hf.co/bartowski/huihui-ai_Mistral-Small-24B-Instruct-2501-abliterated-GGUF:Q4_K_M",
             no_think: bool = False,
             orpheus_model: str = "orpheus-3b-0.1-ft-Q8_0-GGUF/orpheus-3b-0.1-ft-q8_0.gguf",
+            default_voice: str = "af_bella"
         ):
         """
         Initializes the SpeechPipelineManager.
@@ -146,6 +182,7 @@ class SpeechPipelineManager:
         self.llm_model = llm_model
         self.no_think = no_think
         self.orpheus_model = orpheus_model
+        self.current_voice = default_voice
 
         self.system_prompt = system_prompt
         if tts_engine == "orpheus":
@@ -154,7 +191,8 @@ class SpeechPipelineManager:
         # --- Instance Dependencies ---
         self.audio = AudioProcessor(
             engine=self.tts_engine,
-            orpheus_model=self.orpheus_model
+            orpheus_model=self.orpheus_model,
+            voice=self.current_voice if self.tts_engine == "kokoro" else None  # ← ADD THIS
         )
         self.audio.on_first_audio_chunk_synthesize = self.on_first_audio_chunk_synthesize
         self.text_similarity = TextSimilarity(focus='end', n_words=5)
@@ -216,6 +254,37 @@ class SpeechPipelineManager:
 
         logger.info("🗣️🚀 SpeechPipelineManager initialized and workers started.")
 
+    
+    def set_system_prompt(self, persona: str):
+      """Update the system prompt at runtime."""
+      
+      self.system_prompt = PROMPTS[persona]
+      logger.info(f"🗣️📝 System prompt updated dynamically")
+      logger.info(f"using prompt\n{self.system_prompt}")
+      logger.info(f"Re initializig LLM")
+
+      self.llm.update_system_prompt(PROMPTS[persona])
+      # UPDATING VOICE
+      if self.tts_engine == "kokoro" and persona in PERSONA_VOICES:
+        new_voice = PERSONA_VOICES[persona]
+        try:
+            self.audio.set_voice(new_voice)
+            self.current_voice = new_voice
+            logger.info(f"🗣️🔊 Voice: {new_voice}")
+        except Exception as e:
+            logger.error(f"🗣️💥 Voice change failed: {e}")
+      
+      # Clear conversation history
+      self.history = []
+
+      logger.info(f"Re initialized LLM!!!")
+      self.history = []
+
+    
+      logger.info(f"🗣️📝 System prompt updated and LLM reinitialized for persona: {persona}")
+      logger.debug(f"Using prompt:\n{self.system_prompt}")
+    
+    
     def is_valid_gen(self) -> bool:
         """
         Checks if there is a currently running generation that has not started aborting.

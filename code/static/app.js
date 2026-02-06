@@ -1,3 +1,5 @@
+
+document.addEventListener("DOMContentLoaded", () => {
 (function() {
   const originalLog = console.log.bind(console);
   console.log = (...args) => {
@@ -15,14 +17,44 @@
 
 const statusDiv = document.getElementById("status");
 const messagesDiv = document.getElementById("messages");
-const speedSlider = document.getElementById("speedSlider");
-speedSlider.disabled = true;  // start disabled
+// const speedSlider = document.getElementById("speedSlider");
+const personaSelect = document.getElementById("personaSelect"); //added here
+// speedSlider.disabled = true;  // start disabled
+const PERSONAS = {
+  ecommerce: {
+    label: "e_commerce",
+    systemPrompt: `
+        You are a professional customer support agent for an e-commerce platform.
+        You handle order tracking, returns, refunds, and product inquiries.
+        Be warm, concise, and solution-oriented.
+        Keep responses under 3 sentences.
+      `
+  },
+  fitness: {
+    label: "fitness_coach",
+    systemPrompt: `
+      You are a fitness coach.
+      You give safe, actionable workout and nutrition advice.
+      Be motivating, concise, and practical.
+      `
+  },
+  english: {
+    label: "english_coach",
+    systemPrompt: `
+      You are an English speaking coach.
+      Correct mistakes politely and explain briefly.
+      Encourage the user to speak more.
+      `
+  }
+};
+
 
 let socket = null;
 let audioContext = null;
 let mediaStream = null;
 let micWorkletNode = null;
 let ttsWorkletNode = null;
+let selectedPersona = null; //added here
 
 let isTTSPlaying = false;
 let ignoreIncomingTTS = false;
@@ -272,6 +304,8 @@ function escapeHtml(str) {
 
 // UI Controls
 
+
+
 document.getElementById("clearBtn").onclick = () => {
   chatHistory = [];
   typingUser = typingAssistant = "";
@@ -281,33 +315,54 @@ document.getElementById("clearBtn").onclick = () => {
   }
 };
 
-speedSlider.addEventListener("input", (e) => {
-  const speedValue = parseInt(e.target.value);
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({
-      type: 'set_speed',
-      speed: speedValue
-    }));
-  }
-  console.log("Speed setting changed to:", speedValue);
-});
+// speedSlider.addEventListener("input", (e) => {
+//   const speedValue = parseInt(e.target.value);
+//   if (socket && socket.readyState === WebSocket.OPEN) {
+//     socket.send(JSON.stringify({
+//       type: 'set_speed',
+//       speed: speedValue
+//     }));
+//   }
+//   console.log("Speed setting changed to:", speedValue);
+// });
+
+personaSelect.addEventListener("change", () => {
+  selectedPersona = personaSelect.value;
+}); //added this here
 
 document.getElementById("startBtn").onclick = async () => {
   if (socket && socket.readyState === WebSocket.OPEN) {
     statusDiv.textContent = "Already recording.";
     return;
   }
+  
+  if (!selectedPersona) {
+    alert("Please select a persona before starting.");
+    return;
+  } // added here
+  personaSelect.disabled = true; //added here
   statusDiv.textContent = "Initializing connection...";
 
   const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   socket = new WebSocket(`${wsProto}//${location.host}/ws`);
 
   socket.onopen = async () => {
-    statusDiv.textContent = "Connected. Activating mic and TTS…";
-    await startRawPcmCapture();
-    await setupTTSPlayback();
-    speedSlider.disabled = false; 
-  };
+  socket.send(JSON.stringify({
+    type: "set_persona",
+    persona: selectedPersona,
+    prompt: PERSONAS[selectedPersona].systemPrompt
+  }));
+
+  statusDiv.textContent = "Connected. Activating mic and TTS…";
+  await startRawPcmCapture();
+  await setupTTSPlayback();
+  // speedSlider.disabled = false;
+};
+
+
+
+
+
 
   socket.onmessage = (evt) => {
     if (typeof evt.data === "string") {
@@ -324,18 +379,22 @@ document.getElementById("startBtn").onclick = async () => {
     statusDiv.textContent = "Connection closed.";
     flushRemainder();
     cleanupAudio();
-    speedSlider.disabled = true;
+    // speedSlider.disabled = true;
   };
 
   socket.onerror = (err) => {
     statusDiv.textContent = "Connection error.";
     cleanupAudio();
     console.error(err);
-    speedSlider.disabled = true; 
+    // speedSlider.disabled = true; 
   };
 };
 
 document.getElementById("stopBtn").onclick = () => {
+  
+  personaSelect.disabled = false;
+  selectedPersona = null;
+
   if (socket && socket.readyState === WebSocket.OPEN) {
     flushRemainder();
     socket.close();
@@ -356,3 +415,5 @@ document.getElementById("copyBtn").onclick = () => {
 
 // First render
 renderMessages();
+
+});

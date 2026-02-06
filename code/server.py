@@ -30,7 +30,7 @@ from starlette.responses import HTMLResponse, Response, FileResponse
 USE_SSL = False
 TTS_START_ENGINE = "orpheus"
 TTS_START_ENGINE = "kokoro"
-TTS_START_ENGINE = "coqui"
+# TTS_START_ENGINE = "coqui"
 TTS_ORPHEUS_MODEL = "Orpheus_3B-1BaseGGUF/mOrpheus_3B-1Base_Q4_K_M.gguf"
 TTS_ORPHEUS_MODEL = "orpheus-3b-0.1-ft-Q8_0-GGUF/orpheus-3b-0.1-ft-q8_0.gguf"
 
@@ -39,6 +39,7 @@ LLM_START_PROVIDER = "ollama"
 LLM_START_MODEL = "hf.co/bartowski/huihui-ai_Mistral-Small-24B-Instruct-2501-abliterated-GGUF:Q4_K_M"
 # LLM_START_PROVIDER = "lmstudio"
 # LLM_START_MODEL = "Qwen3-30B-A3B-GGUF/Qwen3-30B-A3B-Q3_K_L.gguf"
+LLM_START_MODEL = "https://huggingface.co/ikawrakow/open-hermes-2.5-mistral-7b-quantized-gguf"
 NO_THINK = False
 DIRECT_STREAM = TTS_START_ENGINE=="orpheus"
 
@@ -178,6 +179,11 @@ async def get_index() -> HTMLResponse:
         html_content = f.read()
     return HTMLResponse(content=html_content)
 
+
+@app.get("/health")
+def health():
+    return {"ok": True}
+
 # --------------------------------------------------------------------
 # Utility functions
 # --------------------------------------------------------------------
@@ -293,8 +299,13 @@ async def process_incoming_data(ws: WebSocket, app: FastAPI, incoming_chunks: as
                 msg_type = data.get("type")
                 logger.info(Colors.apply(f"🖥️📥 ←←Client: {data}").orange)
 
+                if msg_type == "set_persona":
+                    callbacks.persona = data["persona"]
+                    callbacks.system_prompt = data["prompt"]
+                    app.state.SpeechPipelineManager.set_system_prompt(data["persona"])
+                    logger.info(f"🖥️ℹ️Persona locked for session: {callbacks.persona} with the prompt {callbacks.system_prompt}.")
 
-                if msg_type == "tts_start":
+                elif msg_type == "tts_start":
                     logger.info("🖥️ℹ️ Received tts_start from client.")
                     # Update connection-specific state via callbacks
                     callbacks.tts_client_playing = True
