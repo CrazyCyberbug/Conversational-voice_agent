@@ -8,16 +8,6 @@ voice agents built  fully using open source models hosted and orchestrated local
 
 <br>
 
-### Overview
-
-This project integrates streaming STT, an LLM, and real-time TTS to create a responsive voice-based AI system. The application supports multiple voices and domain-specific personas, including a production-style e-commerce agent.
-
-The system is designed to feel conversational rather than transactional.
-
-
-
-<br>
-
 ### Demo
 
 https://github.com/user-attachments/assets/e420c693-164b-4413-925f-22a85d77390a
