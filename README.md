@@ -4,15 +4,25 @@ A low-latency, interruption-capable voice assistant that combines real-time Spee
 
 Speak naturally. Interrupt anytime. Switch voices. Change personas.
 
-Built using FasterWhisper, Mixtral, and Kokoro.
+voice agents built  fully using open source models hosted and orchestrated locally.
 
-## Overview
+<br>
+
+### Overview
 
 This project integrates streaming STT, an LLM, and real-time TTS to create a responsive voice-based AI system. The application supports multiple voices and domain-specific personas, including a production-style e-commerce agent.
 
 The system is designed to feel conversational rather than transactional.
 
+
+
+<br>
+
+### Demo
+
 https://github.com/user-attachments/assets/e420c693-164b-4413-925f-22a85d77390a
+
+<br>
 
 ## Features
 
@@ -24,6 +34,7 @@ https://github.com/user-attachments/assets/e420c693-164b-4413-925f-22a85d77390a
 - Modular architecture
 - Fully local and open-source pipeline
 
+<br>
 
 ### Design Goals
 
@@ -33,7 +44,7 @@ https://github.com/user-attachments/assets/e420c693-164b-4413-925f-22a85d77390a
 - Immediate interruption handling
 - Clean persona conditioning within LLM prompts
 
----
+<br>
 
 ## Tech Stack
 
@@ -41,7 +52,9 @@ https://github.com/user-attachments/assets/e420c693-164b-4413-925f-22a85d77390a
 - LLM: Mixtral  
 - TTS: Kokoro  
 - Python backend  
-- Streaming audio pipeline  
+- Streaming audio pipeline
+
+<br>
 
 ## Requirements:
 
