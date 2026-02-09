@@ -26,6 +26,94 @@ https://github.com/user-attachments/assets/e420c693-164b-4413-925f-22a85d77390a
 
 <br>
 
+
+## System Architecture Overview
+
+### Component Hierarchy
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                         Client (Browser)                     │
+│  ┌────────────┐  ┌────────────┐  ┌─────────────────────┐   │
+│  │ Microphone │→ │  WebSocket │ ← │ Audio Playback      │   │
+│  └────────────┘  └─────┬──────┘  └─────────────────────┘   │
+└────────────────────────┼────────────────────────────────────┘
+                         │ (Audio PCM + Metadata)
+┌────────────────────────┼────────────────────────────────────┐
+│                   Server (FastAPI)                           │
+│  ┌─────────────────────┼────────────────────────────────┐   │
+│  │  process_incoming_data (async task)                   │   │
+│  │  • Receives audio chunks with timestamps & flags      │   │
+│  │  • Applies backpressure (queue limit: 50 chunks)      │   │
+│  │  • Handles JSON control messages                      │   │
+│  └────────────────────┬───────────────────────────────────┘   │
+│                       ▼                                       │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │    AudioInputProcessor (global component)             │   │
+│  │  ┌────────────────────────────────────────────────┐  │   │
+│  │  │  VAD (Voice Activity Detection)                │  │   │
+│  │  │  • Silero VAD model (30ms chunks)             │  │   │
+│  │  │  • Dynamic thresholds (speech/silence)         │  │   │
+│  │  └────────────────────────────────────────────────┘  │   │
+│  │  ┌────────────────────────────────────────────────┐  │   │
+│  │  │  WhisperTranscriber                            │  │   │
+│  │  │  • Faster-Whisper model                        │  │   │
+│  │  │  • Streaming transcription (512ms chunks)      │  │   │
+│  │  │  • Partial/potential/final callbacks           │  │   │
+│  │  └────────────────────────────────────────────────┘  │   │
+│  │  ┌────────────────────────────────────────────────┐  │   │
+│  │  │  TurnDetection                                 │  │   │
+│  │  │  • Sentence completion classifier              │  │   │
+│  │  │  • Dynamic pause calculation                   │  │   │
+│  │  │  • Punctuation analysis                        │  │   │
+│  │  └────────────────────────────────────────────────┘  │   │
+│  └──────────────────────┬───────────────────────────────┘   │
+│                         ▼ (transcribed text)                 │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  TranscriptionCallbacks (per-connection state)        │   │
+│  │  • Manages connection-specific flags                  │   │
+│  │  • Coordinates with SpeechPipelineManager            │   │
+│  │  • Handles user interruptions                        │   │
+│  └──────────────────────┬───────────────────────────────┘   │
+│                         ▼                                     │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  SpeechPipelineManager (global orchestrator)         │   │
+│  │  ┌────────────────────────────────────────────────┐  │   │
+│  │  │  Request Queue Processor (thread)              │  │   │
+│  │  │  • Handles 'prepare', 'abort', 'finish'        │  │   │
+│  │  │  • Text similarity deduplication               │  │   │
+│  │  │  • Initiates LLM generation                    │  │   │
+│  │  └────────────────────────────────────────────────┘  │   │
+│  │  ┌────────────────────────────────────────────────┐  │   │
+│  │  │  LLM Worker Thread                             │  │   │
+│  │  │  • Streams tokens from LLM                     │  │   │
+│  │  │  • Identifies quick answer boundary            │  │   │
+│  │  │  • Signals TTS workers                         │  │   │
+│  │  └────────────────────────────────────────────────┘  │   │
+│  │  ┌────────────────────────────────────────────────┐  │   │
+│  │  │  Quick TTS Worker Thread                       │  │   │
+│  │  │  • Synthesizes first part of response          │  │   │
+│  │  │  • Produces audio chunks immediately           │  │   │
+│  │  └────────────────────────────────────────────────┘  │   │
+│  │  ┌────────────────────────────────────────────────┐  │   │
+│  │  │  Final TTS Worker Thread                       │  │   │
+│  │  │  • Synthesizes remaining response              │  │   │
+│  │  │  • Continues from LLM stream                   │  │   │
+│  │  └────────────────────────────────────────────────┘  │   │
+│  └──────────────────────┬───────────────────────────────┘   │
+│                         ▼ (audio chunks)                     │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  send_tts_chunks (async task)                        │   │
+│  │  • Upsamples audio (8kHz → 24kHz)                    │   │
+│  │  • Base64 encodes chunks                             │   │
+│  │  • Sends to client via WebSocket                     │   │
+│  └──────────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+
 ### Design Goals
 
 - Low latency
